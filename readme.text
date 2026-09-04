@@ -1,0 +1,88 @@
+----------------------------------------终端1启动bridge----------------------------------------
+cd /home/wyj/project_XJTU
+conda activate base
+MUJOCO_GL=glfw python3 uav_mujoco_bridge.py
+
+#MUJOCO_GL=glfw 设置 MuJoCo 渲染后端环境为GLFW
+
+----------------------------------------终端2启动JSON backend----------------------------------
+cd ~/ardupilot
+
+DISPLAY= WAYLAND_DISPLAY= \
+./Tools/autotest/sim_vehicle.py \
+    -v ArduPlane \
+    -f JSON:127.0.0.1 \
+    --no-rebuild \
+    --out=udp:127.0.0.1:14550
+
+#sim_vehicle.py 是 ArduPilot 官方 SITL 仿真虚拟飞控启动入口
+#-v = vehicle 指定本次仿真运行 固定翼飞机固件 ArduPlane
+#JSON：选用 JSON 格式数据输出的仿真后端，127.0.0.1：本地回环地址，仿真数据仅在本机内部流转，不向外网广播
+#--console开启飞控调试终端控制台 MAVProxy
+#--out向外转发 MAVLink 飞控协议数据流，通过 UDP 14550 端口向外推送，14550代表地面站，后面地面站的地址设成14550
+#所以传输流程是：
+下行（SITL → Bridge）,传的是二进制数据包，通过 UDP 发到9002，9002就是bridge.py
+上行（Bridge → SITL）,传的是 JSON 字符串数据包的bytes，通过 UDP 发到捕获的target地址 即SITL
+
+---------------------------------------- MAVProxy 控制台依次输入--------------------------------
+param set Q_ENABLE 1               #将Q_ENABLE设置为1来启用四翼支持 0表示关闭
+param set Q_FRAME_CLASS 10         #10代表双直升机BiCopter
+param set Q_TILT_ENABLE 1          #支持倾转旋翼 TILT表示倾转
+param set Q_TILT_TYPE 3            #选择 Bicopter 双旋翼倾转类型
+param set Q_TILT_MASK 3            #二进制 0011，表示 Motor 1 和 Motor 2 都能倾转  0111，7则为三个都能倾转
+param set Q_TILT_YAW_ANGLE 10      #用于偏航控制的角度为 100° eg：如果前部电机倾斜110度，那么Q_TILT_YAW_ANGLE是20，因为那是90度之后的角度 倾斜机构能达到的程度
+param set Q_TAILSIT_ENABLE 0
+
+param set SERVO1_FUNCTION 73       #左涵道油门,向左 / 向右漂移
+param set SERVO2_FUNCTION 74       #右涵道油门,向前 / 向后漂移
+param set SERVO3_FUNCTION 75       #上升 / 下降
+param set SERVO4_FUNCTION 76       #右倾斜电机=右矢量舵面 旋转掉头
+
+param set SCHED_LOOP_RATE 100      #表示 ArduPlane 主控制循环以 100 Hz 运行=0.01s
+param set SIM_RATE_HZ 1000         # JSON SITL 外部mujoco物理仿真目标频率为 1000 Hz
+param set Q_ASSIST_SPEED 1         #空速低于 1 m/s 时允许 VTOL旋翼提供稳定和升力辅助
+param set AHRS_EKF_TYPE 3          
+param set EK3_ENABLE 1             #用 EKF3 对mujoco回传的数据进行状态估计
+
+param set SERVO1_MIN 1000          #设定油门范围
+param set SERVO1_MAX 2000
+param set SERVO1_TRIM 1000
+
+param set SERVO2_MIN 1000
+param set SERVO2_MAX 2000
+param set SERVO2_TRIM 1000
+
+param set SERVO3_MIN 1000          #设定舵面范围
+param set SERVO3_MAX 2000
+param set SERVO3_TRIM 1500
+
+param set SERVO4_MIN 1000
+param set SERVO4_MAX 2000
+param set SERVO4_TRIM 1500
+
+param set SERVO3_REVERSED 0
+param set SERVO4_REVERSED 0
+
+param set Q_M_THST_EXPO 0          #推力曲线指数 0为线性油门
+param set Q_M_HOVER_LEARN 0        #关闭自动学习悬停油门
+param set Q_M_THST_HOVER 0.69       #代表整机悬停时，电机需要维持 50% 左右的总推力刚好抵消自身重力
+
+reboot                             #重新初始化，参数会保存到 SITL 参数文件中，不需要每次启动都重新设置
+
+rc 1 1500 2 1500 3 1000 4 1500     #rc Radio Channel 遥控器通道赋值; 3 绑定的是左电机倾转舵机 SERVO3;1000是将左侧倾转舵机打到极限低位
+
+
+mode QSTABILIZE                    #切换至旋翼稳定模式
+arm throttle                       #油门解锁 等待active之后逐步增油门
+rc 3 1200
+rc 3 1400
+rc 3 1500                          #左侧倾转舵机打到中位
+
+mode QHOVER                        #高度稳定测试
+rc 3 1500
+rc 3 1000                          #降落
+disarm                             #落地稳定之后再执行 disarm，禁止空中直接上锁
+
+#18 × (thr_left + thr_right) > 24.75 N 才能升高
+#param set FORMAT_VERSION 0        恢复所有参数到默认值
+#cp -r project_XJTU /mnt/c/Users/wyj/Desktop/ 复制文件夹到桌面

@@ -1,0 +1,222 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mujoco model="solidworks_dual_duct_uav">
+  <compiler angle="radian"
+            meshdir="mujoco_meshes"
+            autolimits="true"
+            inertiafromgeom="false"/>
+
+  <option timestep="0.001"
+          gravity="0 0 -9.80665"
+          integrator="RK4"
+          iterations="50"
+          solver="Newton"/>
+
+  <visual>
+    <global offwidth="1600" offheight="900"/>
+    <map znear="0.01" zfar="200"/>
+  </visual>
+
+  <default>
+    <joint damping="0.001" armature="0.000001"/>
+    <geom type="mesh"
+          contype="0"
+          conaffinity="0"
+          friction="1 0.5 0.01"
+          rgba="0.70 0.72 0.74 1"/>
+    <!-- 控制与传感器site保持不可见 -->
+    <site size="0.002" rgba="0 0 0 0"/>
+  </default>
+
+  <asset>
+    <texture name="sky"
+             type="skybox"
+             builtin="gradient"
+             rgb1="0.35 0.55 0.80"
+             rgb2="0.02 0.04 0.08"
+             width="512"
+             height="3072"/>
+
+    <texture name="ground_tex"
+             type="2d"
+             builtin="checker"
+             rgb1="0.30 0.31 0.29"
+             rgb2="0.18 0.19 0.18"
+             width="512"
+             height="512"/>
+
+    <material name="ground_mat"
+              texture="ground_tex"
+              texrepeat="30 30"
+              reflectance="0.08"/>
+
+    <mesh name="base_mesh" file="base.stl"/>
+    <mesh name="blade_left_mesh" file="blade_left.stl"/>
+    <mesh name="blade_right_mesh" file="blade_right.stl"/>
+    <mesh name="rudder_left_mesh" file="rudder_left.stl"/>
+    <mesh name="rudder_right_mesh" file="rudder_right.stl"/>
+  </asset>
+
+  <worldbody>
+    <light pos="0 -3 5"
+           dir="0 0 -1"
+           diffuse="0.9 0.9 0.9"
+           specular="0.2 0.2 0.2"/>
+
+    <geom name="ground"
+          type="plane"
+          size="30 30 0.05"
+          contype="1"
+          conaffinity="1"
+          material="ground_mat"/>
+
+    <body name="uav" pos="0 0 0.35">
+      <freejoint name="uav_free"/>
+
+      <inertial
+          pos="8.5975198003e-06 2.667546975e-07 -0.00920192402908"
+          mass="19.7167278334"
+          fullinertia="1.35119770681 0.07267867657 1.38228246268 -0.000473049999214 4.426707624e-06 4.57680349e-08"/>
+
+      <geom name="base_visual"
+            mesh="base_mesh"
+            contype="1"
+            conaffinity="1"
+            rgba="0.55 0.58 0.60 1"/>
+
+      <!-- 隐藏的传感器和矢量力作用点 -->
+      <site name="imu_site" pos="0 0 0"/>
+      <site name="rangefinder_site" pos="0 0 -0.15"/>
+
+      <site name="rudder_left_force_site"
+            pos="0 0.3852 -0.136"/>
+
+      <site name="rudder_right_force_site"
+            pos="0 -0.3852 -0.136"/>
+
+      <!-- 左叶片 -->
+      <body name="blade_left" pos="0 0.383 0.0297">
+        <joint name="blade_left_spin"
+               type="hinge"
+               axis="0 0 1"
+               limited="false"
+               damping="0.00001"/>
+
+        <inertial
+            pos="0 0 0"
+            mass="0.0135062383547"
+            fullinertia="1.03865486305e-05 1.03865486305e-05 2.07168212679e-05 0 0 0"/>
+
+        <geom name="blade_left_visual"
+              mesh="blade_left_mesh"
+              rgba="0.12 0.44 0.95 1"/>
+
+        <site name="blade_left_thrust_site" pos="0 0 0"/>
+      </body>
+
+      <!-- 右叶片 -->
+      <body name="blade_right" pos="0 -0.383 0.0297">
+        <joint name="blade_right_spin"
+               type="hinge"
+               axis="0 0 1"
+               limited="false"
+               damping="0.00001"/>
+
+        <inertial
+            pos="0 0 0"
+            mass="0.0135062383547"
+            fullinertia="1.03865486305e-05 1.03865486305e-05 2.07168212679e-05 0 0 0"/>
+
+        <geom name="blade_right_visual"
+              mesh="blade_right_mesh"
+              rgba="0.12 0.44 0.95 1"/>
+
+        <site name="blade_right_thrust_site" pos="0 0 0"/>
+      </body>
+
+      <!-- 左舵面 -->
+      <body name="rudder_left" pos="-1e-16 0.3852 -0.136">
+        <joint name="rudder_left_hinge"
+               type="hinge"
+               axis="0 -1 0"
+               range="-0.785398 0.785398"/>
+
+        <inertial
+            pos="-0.00734408351235 -0.0109403796689 -0.0234631105358"
+            mass="0.0280869035322"
+            fullinertia="6.52790557188e-05 1.14855428853e-05 5.59262404335e-05 -2.291473871e-07 3.2454496671e-06 -7.320842266e-07"/>
+
+        <geom name="rudder_left_visual"
+              mesh="rudder_left_mesh"
+              rgba="0.95 0.62 0.18 1"/>
+      </body>
+
+      <!-- 右舵面 -->
+      <body name="rudder_right" pos="3.1e-15 -0.3852 -0.136">
+        <joint name="rudder_right_hinge"
+               type="hinge"
+               axis="-4.6e-15 -1 -3e-16"
+               range="-0.785398 0.785398"/>
+
+        <inertial
+            pos="-0.00471802716573 0.0109403796689 -0.0241286828964"
+            mass="0.0280869035322"
+            fullinertia="6.58756513704e-05 1.14855428853e-05 5.53296447818e-05 1.472086678e-07 2.1441008e-06 7.528515444e-07"/>
+
+        <geom name="rudder_right_visual"
+              mesh="rudder_right_mesh"
+              rgba="0.95 0.62 0.18 1"/>
+      </body>
+    </body>
+  </worldbody>
+
+  <sensor>
+    <gyro name="imu_gyro" site="imu_site"/>
+    <accelerometer name="imu_accelerometer" site="imu_site"/>
+  </sensor>
+
+  <actuator>
+    <!-- 左右涵道垂直推力，控制值单位为N -->
+    <motor name="blade_left_thrust"
+           site="blade_left_thrust_site"
+           gear="0 0 1 0 0 0"
+           ctrlrange="0 140.09"/>
+
+    <motor name="blade_right_thrust"
+           site="blade_right_thrust_site"
+           gear="0 0 1 0 0 0"
+           ctrlrange="0 140.09"/>
+
+    <!-- 舵面偏转产生的水平气动力 -->
+    <motor name="rudder_left_forward_force"
+           site="rudder_left_force_site"
+           gear="1 0 0 0 0 0"
+           ctrlrange="-20 20"/>
+
+    <motor name="rudder_right_forward_force"
+           site="rudder_right_force_site"
+           gear="1 0 0 0 0 0"
+           ctrlrange="-20 20"/>
+
+    <!-- 舵面位置控制，最大控制角度10度 -->
+    <position name="rudder_left_servo"
+              joint="rudder_left_hinge"
+              kp="6"
+              ctrlrange="-0.174533 0.174533"/>
+
+    <position name="rudder_right_servo"
+              joint="rudder_right_hinge"
+              kp="6"
+              ctrlrange="-0.174533 0.174533"/>
+
+    <!-- 叶片反向旋转，仅用于动画 -->
+    <velocity name="blade_left_velocity"
+              joint="blade_left_spin"
+              kv="0.0001"
+              ctrlrange="-1400 1400"/>
+
+    <velocity name="blade_right_velocity"
+              joint="blade_right_spin"
+              kv="0.0001"
+              ctrlrange="-1400 1400"/>
+  </actuator>
+</mujoco>
