@@ -4,4 +4,4 @@ Flight-control development and flight testing for a ducted-fan electric vertical
 2.Designed control allocation logic for thrust and control surfaces
 3.Implemented attitude loop, position loop, stable hovering and trajectory tracking
 See Figures 1:
-https://github.com/YUJIE-WANG-grad/Flight-control-development-and-flight-testing-for-eVTOL/issues/1#issue-5345507492
+![](https://github.com/YUJIE-WANG-grad/Flight-control-development-and-flight-testing-for-eVTOL/issues/1#issue-5345507492)
